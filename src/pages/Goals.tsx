@@ -94,7 +94,7 @@ function GoalCard({ goal, data }: { goal: Goal; data: AppData }) {
       {chart && (
         <div style={{ marginTop: 12 }}>
           <div className="label">Cible</div>
-          <Stepper value={goal.target} step={LOAD_STEP} onChange={(target) => db.goals.update(goal.id, { target })} format={kg} />
+          <Stepper keyboard="decimal" prefix="+" unit="kg" value={goal.target} step={LOAD_STEP} onChange={(target) => db.goals.update(goal.id, { target })} format={formatKg} />
           <div style={{ marginTop: 12 }}>
             <TrendChart line data={goalSeries(goal, data, data.counted)} dataKey="value" refLine={{ value: goal.target, label: 'Cible' }} format={kg} height={150} />
           </div>
@@ -136,7 +136,7 @@ function NewGoal({ open, onClose, data }: { open: boolean; onClose: () => void; 
       </div>
       <div>
         <div className="label">Lest visé</div>
-        <Stepper value={target} step={LOAD_STEP} onChange={setTarget} format={kg} />
+        <Stepper keyboard="decimal" prefix="+" unit="kg" value={target} step={LOAD_STEP} onChange={setTarget} format={formatKg} />
       </div>
       <div>
         <div className="label">Échéance (optionnelle)</div>

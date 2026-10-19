@@ -205,6 +205,16 @@ a { color: var(--accent); }
   font-weight: 800; font-size: 18px; line-height: 1.1; font-variant-numeric: tabular-nums;
 }
 .mini-step .v input::placeholder { color: var(--muted); }
+/* Chiffre du grand stepper modifiable au clavier : souligné en pointillé. */
+.stepper-input input { text-decoration: underline dotted var(--muted); text-underline-offset: 4px; text-decoration-thickness: 2px; }
+.stepper-input { display: inline-flex; align-items: baseline; justify-content: center; gap: 1px; cursor: text; }
+.stepper-input input {
+  width: auto; min-width: 2ch; padding: 0 2px; border: 0; border-radius: 8px; background: transparent; text-align: center;
+  font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.stepper-input input::placeholder { color: var(--muted); }
+.stepper-input input:focus { background: var(--card); box-shadow: 0 0 0 2px var(--accent); text-decoration: none; }
+.stepper-unit { margin-left: 5px; font-size: 16px; font-weight: 700; color: var(--text-2); }
 .mini-step .v input:focus { background: var(--card); box-shadow: 0 0 0 2px var(--accent); }
 .mini-step .u { display: block; font-size: 10px; font-weight: 600; color: var(--muted); margin-top: 2px; }
 .check {

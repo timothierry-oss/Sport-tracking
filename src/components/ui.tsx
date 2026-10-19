@@ -70,14 +70,43 @@ export function MiniStep({ value, step, unit, onChange, format = (v) => String(v
   );
 }
 
-/** Grand stepper (formulaires). */
-export function Stepper({ value, step, onChange, format = formatKg, min = 0 }: {
+/**
+ * Grand stepper (formulaires). Avec `keyboard`, le chiffre se tape aussi au clavier
+ * (le champ se vide au toucher ; vide = inchangé), entouré de `prefix` et `unit`.
+ */
+export function Stepper({ value, step, onChange, format = formatKg, min = 0, keyboard, prefix, unit }: {
   value: number; step: number; onChange: (v: number) => void; format?: (v: number) => string; min?: number;
+  keyboard?: 'decimal' | 'int'; prefix?: string; unit?: string;
 }) {
+  const [text, setText] = useState<string | null>(null);
+  const commit = () => {
+    if (text == null) return;
+    const v = text === '' ? NaN : parseFloat(text.replace(',', '.'));
+    if (Number.isFinite(v)) onChange(Math.max(min, keyboard === 'int' ? Math.round(v) : Math.round(v * 100) / 100));
+    setText(null);
+  };
   return (
     <div className="stepper">
       <button onClick={() => onChange(Math.max(min, +(value - step).toFixed(2)))} aria-label="moins">−</button>
-      <span className="v num">{format(value)}</span>
+      {keyboard ? (
+        <label className="v num stepper-input">
+          {prefix}
+          <input
+            inputMode={keyboard === 'decimal' ? 'decimal' : 'numeric'}
+            aria-label={unit ?? 'valeur'}
+            value={text ?? format(value)}
+            placeholder={format(value)}
+            size={Math.max(2, format(value).length)}
+            onFocus={() => setText('')}
+            onChange={(e) => setText(e.target.value.replace(/[^0-9.,]/g, ''))}
+            onBlur={commit}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          />
+          {unit && <span className="stepper-unit">{unit}</span>}
+        </label>
+      ) : (
+        <span className="v num">{format(value)}</span>
+      )}
       <button onClick={() => onChange(+(value + step).toFixed(2))} aria-label="plus">+</button>
     </div>
   );
