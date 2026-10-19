@@ -4,12 +4,14 @@ import { VitePWA } from 'vite-plugin-pwa';
 import pkg from './package.json';
 
 // GitHub Pages sert le site sous /<nom du dépôt>/ ; en dev on reste à la racine.
-export default defineConfig(({ command }) => {
-  const base = command === 'build' ? '/Sport-tracking/' : '/';
+export default defineConfig(({ command, isPreview }) => {
+  const base = command === 'build' || isPreview ? '/Sport-tracking/' : '/';
   return {
     base,
     define: { __APP_VERSION__: JSON.stringify(pkg.version) },
-    build: { chunkSizeWarningLimit: 600, rollupOptions: { output: { manualChunks: { charts: ['recharts'], vendor: ['react', 'react-dom', 'dexie', 'dexie-react-hooks'] } } } },
+    // Un seul bundle (~700 Ko, mis en cache par le service worker) : découper React et Recharts
+    // dans des fichiers séparés crée une dépendance circulaire qui casse l'app en production.
+    build: { chunkSizeWarningLimit: 800 },
     plugins: [
       react(),
       VitePWA({

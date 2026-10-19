@@ -12,6 +12,7 @@ npm run dev            # http://localhost:5173
 npm run dev -- --host  # test depuis l'iPhone sur le même Wi-Fi
 npm test               # tests des calculs (1RM, tonnage, catégories)
 npm run build          # build de production dans dist/
+npm run preview        # teste ce build tel qu'il sera publié : http://localhost:4173/Sport-tracking/
 ```
 
 ## Déploiement (GitHub Pages)
