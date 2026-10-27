@@ -7,14 +7,16 @@ import Home from './pages/Home';
 import Sessions from './pages/Sessions';
 import Stats from './pages/Stats';
 import Goals from './pages/Goals';
+import Friends from './pages/Friends';
 import Settings from './pages/Settings';
+import { SyncProvider } from './components/SyncProvider';
 import StrengthSession from './pages/StrengthSession';
 import BjjSession from './pages/BjjSession';
 import TemplateEditor from './pages/TemplateEditor';
 import Onboarding from './pages/Onboarding';
 import { useTheme } from './theme/useTheme';
 
-const TAB_PATHS = ['/', '/seances', '/stats', '/objectifs'];
+const TAB_PATHS = ['/', '/seances', '/stats', '/objectifs', '/amis'];
 
 export default function App() {
   useTheme();
@@ -42,11 +44,13 @@ export default function App() {
   } else if (path === '/seances') page = <Sessions data={data} />;
   else if (path === '/stats') page = <Stats data={data} />;
   else if (path === '/objectifs') page = <Goals data={data} />;
+  else if (path === '/amis') page = <Friends data={data} />;
   else if (path === '/reglages') page = <Settings data={data} />;
   else page = <Home data={data} />;
 
   return (
     <div className="app">
+      <SyncProvider data={data} />
       {page}
       {TAB_PATHS.includes(path) && <TabBar path={path} />}
     </div>

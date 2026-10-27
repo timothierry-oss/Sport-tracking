@@ -24,3 +24,4 @@ export const IconLink = (p: P) => <S {...p}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a
 export const IconChevron = (p: P) => <S {...p}><path d="M9 6l6 6-6 6" /></S>;
 export const IconArrowUp = (p: P) => <S {...p}><path d="M12 19V5M5 12l7-7 7 7" /></S>;
 export const IconArrowDown = (p: P) => <S {...p}><path d="M12 5v14M19 12l-7 7-7-7" /></S>;
+export const IconUsers = (p: P) => <S {...p}><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 8a3 3 0 1 1 0-6M17 14c2.6.3 5 2.3 5 6" /></S>;

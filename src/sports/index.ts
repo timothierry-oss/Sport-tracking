@@ -11,6 +11,8 @@ export const BJJ_ID = 'bjj';
 export const SELECTED_SPORTS_KEY = 'selectedSports';
 /** Clé de réglage : prénom affiché sur l'accueil. */
 export const USER_NAME_KEY = 'userName';
+/** Clé de réglage : ce que l'utilisateur partage avec ses amis ('none' | 'summary' | 'full'). */
+export const SHARE_LEVEL_KEY = 'shareLevel';
 
 export const DEFAULT_SPORTS: Sport[] = [
   { id: STREET_ID, name: 'Streetlifting', kind: 'strength', fields: ['load', 'reps', 'rpe', 'feeling', 'rest'] },

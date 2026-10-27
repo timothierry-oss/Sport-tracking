@@ -1,10 +1,11 @@
-import { IconCalendar, IconChart, IconHome, IconTarget } from './Icons';
+import { IconCalendar, IconChart, IconHome, IconTarget, IconUsers } from './Icons';
 
 const TABS = [
   { path: '/', label: 'Accueil', Icon: IconHome },
   { path: '/seances', label: 'Séances', Icon: IconCalendar },
   { path: '/stats', label: 'Stats', Icon: IconChart },
   { path: '/objectifs', label: 'Objectifs', Icon: IconTarget },
+  { path: '/amis', label: 'Amis', Icon: IconUsers },
 ];
 
 export function TabBar({ path }: { path: string }) {

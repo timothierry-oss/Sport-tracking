@@ -10,7 +10,10 @@ import { useTheme, type ThemePref } from '../theme/useTheme';
 import { downloadFile, exportData, importData } from '../db/backup';
 import { uid } from '../lib/id';
 import { todayISO } from '../lib/dates';
-import { SELECTED_SPORTS_KEY, USER_NAME_KEY } from '../sports';
+import { SELECTED_SPORTS_KEY, SHARE_LEVEL_KEY, USER_NAME_KEY } from '../sports';
+import { supabase } from '../lib/supabase';
+import { useAuthSession, signIn, signOut, signUp } from '../lib/auth';
+import { pushSnapshot, type ShareLevel } from '../db/sharing';
 
 export default function Settings({ data }: { data: AppData }) {
   const [theme, setTheme] = useTheme();
@@ -20,6 +23,31 @@ export default function Settings({ data }: { data: AppData }) {
   const file = useRef<HTMLInputElement>(null);
   const [userName, setUserName] = useState(data.userName ?? '');
   useEffect(() => setUserName(data.userName ?? ''), [data.userName]);
+
+  const session = useAuthSession();
+  const [authMode, setAuthMode] = useState<'in' | 'up'>('in');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPwd, setAuthPwd] = useState('');
+  const [authMsg, setAuthMsg] = useState('');
+
+  const submitAuth = async () => {
+    setAuthMsg('');
+    try {
+      if (authMode === 'up') {
+        await signUp(authEmail.trim(), authPwd);
+        setAuthMsg('Compte créé. Vérifie ta boîte mail si une confirmation est demandée.');
+      } else {
+        await signIn(authEmail.trim(), authPwd);
+      }
+    } catch (e) {
+      setAuthMsg(e instanceof Error ? e.message : 'Échec de la connexion.');
+    }
+  };
+
+  const setShareLevel = async (level: ShareLevel) => {
+    await db.settings.put({ key: SHARE_LEVEL_KEY, value: level });
+    if (session) await pushSnapshot(data, session.user.id, level);
+  };
 
   const strengthList = strengthSports(data);
   const combatList = combatSports(data);
@@ -77,6 +105,37 @@ export default function Settings({ data }: { data: AppData }) {
         <input value={userName} onChange={(e) => setUserName(e.target.value)}
           onBlur={() => db.settings.put({ key: USER_NAME_KEY, value: userName.trim() })} />
       </Card>
+
+      {!supabase ? (
+        <Card>
+          <div className="card-head"><h2>Amis</h2></div>
+          <div className="muted small">Le partage avec des amis n'est pas encore configuré sur cette installation.</div>
+        </Card>
+      ) : !session ? (
+        <Card>
+          <div className="card-head"><h2>Compte</h2></div>
+          <div className="muted small" style={{ marginBottom: 10 }}>Crée un compte ou connecte-toi pour partager ta progression avec des amis. Reste optionnel : sans compte, tout continue de fonctionner en local.</div>
+          <Segmented<'in' | 'up'> value={authMode} onChange={setAuthMode} options={[['in', 'Se connecter'], ['up', 'Créer un compte']]} />
+          <div className="label" style={{ marginTop: 10 }}>Email</div>
+          <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
+          <div className="label" style={{ marginTop: 10 }}>Mot de passe</div>
+          <input type="password" value={authPwd} onChange={(e) => setAuthPwd(e.target.value)} />
+          <button className="btn accent block" style={{ marginTop: 12 }} onClick={submitAuth} disabled={!authEmail.trim() || authPwd.length < 6}>
+            {authMode === 'up' ? 'Créer le compte' : 'Se connecter'}
+          </button>
+          {authMsg && <div className="small" style={{ marginTop: 8 }}>{authMsg}</div>}
+        </Card>
+      ) : (
+        <Card>
+          <div className="card-head"><h2>Compte</h2></div>
+          <div className="list-item"><span className="grow">{session.user.email}</span></div>
+          <div className="label" style={{ marginTop: 10 }}>Partager avec mes amis</div>
+          <Segmented<ShareLevel> value={data.shareLevel} onChange={setShareLevel}
+            options={[['none', 'Aucun'], ['summary', 'Résumé'], ['full', 'Historique complet']]} />
+          <div className="muted small" style={{ marginTop: 8 }}>Résumé : maxes et objectifs. Historique complet : toutes tes séances et séries.</div>
+          <button className="btn ghost sm block" style={{ marginTop: 12 }} onClick={signOut}>Se déconnecter</button>
+        </Card>
+      )}
 
       <Card>
         <div className="card-head"><h2>Sports suivis</h2></div>

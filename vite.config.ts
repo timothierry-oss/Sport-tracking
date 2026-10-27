@@ -3,9 +3,9 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import pkg from './package.json';
 
-// GitHub Pages sert le site sous /<nom du dépôt>/ ; en dev on reste à la racine.
-export default defineConfig(({ command, isPreview }) => {
-  const base = command === 'build' || isPreview ? '/Sport-tracking/' : '/';
+// Vercel sert le site depuis la racine.
+export default defineConfig(() => {
+  const base = '/';
   return {
     base,
     define: { __APP_VERSION__: JSON.stringify(pkg.version) },

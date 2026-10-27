@@ -2,7 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo } from 'react';
 import { db } from './db';
 import { countedSets } from '../lib/stats';
-import { SELECTED_SPORTS_KEY, USER_NAME_KEY } from '../sports';
+import { SELECTED_SPORTS_KEY, SHARE_LEVEL_KEY, USER_NAME_KEY } from '../sports';
+import type { ShareLevel } from './sharing';
 
 /** Toutes les données locales, réactives (volumes faibles : on charge tout). */
 export function useData() {
@@ -23,6 +24,8 @@ export function useData() {
     const selectedSports = Array.isArray(raw) && raw.length ? (raw as string[]) : null;
     const rawName = settings.find((s) => s.key === USER_NAME_KEY)?.value;
     const userName = typeof rawName === 'string' && rawName ? rawName : undefined;
+    const rawShareLevel = settings.find((s) => s.key === SHARE_LEVEL_KEY)?.value;
+    const shareLevel: ShareLevel = rawShareLevel === 'summary' || rawShareLevel === 'full' ? rawShareLevel : 'none';
 
     const activeSports = sports.filter((s) => selectedSports == null || selectedSports.includes(s.id));
     const activeSportIds = new Set(activeSports.map((s) => s.id));
@@ -39,7 +42,7 @@ export function useData() {
     const maxes = allMaxes.filter((m) => activeSportIds.has(exerciseSportOf.get(m.exerciseId) ?? ''));
     const tags = allTags.filter((t) => activeSportIds.has(t.sportId));
 
-    return { sports, exercises, sets, tags, templates, goals, maxes, selectedSports, userName, sessions, drafts, activeSports };
+    return { sports, exercises, sets, tags, templates, goals, maxes, selectedSports, userName, shareLevel, sessions, drafts, activeSports };
   });
   const counted = useMemo(() => (data ? countedSets(data) : []), [data]);
   return data ? { ...data, counted } : undefined;
