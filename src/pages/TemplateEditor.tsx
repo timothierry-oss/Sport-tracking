@@ -75,7 +75,7 @@ export default function TemplateEditor({ template, data }: { template: Template;
       ))}
       <button className="btn ghost block" onClick={() => setAdding({})}><IconPlus size={18} /> Ajouter un exercice</button>
       <button className="btn danger block" onClick={remove}>Supprimer le modèle</button>
-      <AddSetsSheet open={!!adding} exerciseId={adding?.exerciseId} initial={adding?.initial} onClose={() => setAdding(null)} data={data}
+      <AddSetsSheet open={!!adding} exerciseId={adding?.exerciseId} initial={adding?.initial} sportId={t.sportId} onClose={() => setAdding(null)} data={data}
         onAdd={(exerciseId, b) => {
           const index = adding?.index;
           setAdding(null);

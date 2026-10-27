@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { AppData } from '../db/useData';
+import { strengthExercises as getStrengthExercises, strengthSports } from '../db/useData';
 import { Card, PageHead, Ring, Segmented } from '../components/ui';
 import { IconBack, IconBelt, IconChevron, IconDumbbell, IconPlay, IconSettings } from '../components/Icons';
 import { TrendChart } from '../components/charts';
@@ -8,7 +9,6 @@ import { addDays, formatDay, formatLong, formatMonthYear, formatShort, parseISO,
 import { aggregate, trainingDays, type Period } from '../lib/stats';
 import { formatKg, formatTonnage, pctChange } from '../lib/calc';
 import { createSession } from '../db/actions';
-import { BJJ_ID, STREET_ID } from '../sports';
 import { sessionTitle } from './sessionInfo';
 import type { Session } from '../db/types';
 
@@ -17,13 +17,13 @@ export default function Home({ data }: { data: AppData }) {
   const [period, setPeriod] = useState<Period>('week');
   const [exerciseId, setExerciseId] = useState<string>('');
 
-  const days = weekDays(today);
+  const last7Start = addDays(today, -6);
   const done = trainingDays(data.sessions);
   const todays = data.sessions.filter((s) => s.date === today).sort((a, b) => a.createdAt - b.createdAt);
   const todayPlanned = todays.filter((s) => s.status === 'planned');
   const todayDone = todays.filter((s) => s.status === 'done');
 
-  const strengthExercises = data.exercises.filter((e) => e.sportId === STREET_ID && !e.archived);
+  const strengthExercisesList = getStrengthExercises(data);
   const buckets = useMemo(
     () => aggregate(data, data.counted, period, period === 'week' ? 10 : 6, { exerciseId: exerciseId || undefined }),
     [data, period, exerciseId],
@@ -32,10 +32,17 @@ export default function Home({ data }: { data: AppData }) {
   const prev = buckets[buckets.length - 2];
   const delta = pctChange(curr.tonnage, prev?.tonnage ?? 0);
 
-  const week = aggregate(data, data.counted, 'week', 1)[0];
-  const weekSessions = data.sessions.filter((s) => s.status === 'done' && s.date >= days[0] && s.date <= days[6]).length;
-  // Objectif de la semaine = séances de streetlifting programmées (ou déjà faites) cette semaine.
-  const weekStreet = data.sessions.filter((s) => s.sportId === STREET_ID && s.date >= days[0] && s.date <= days[6]);
+  // Stats « 7 derniers jours » glissants (plutôt que la semaine calendaire).
+  const last7 = aggregate(data, data.counted, 'day', 7);
+  const weekReps = last7.reduce((a, b) => a + b.reps, 0);
+  const last7Int = last7.filter((b) => b.intensity != null);
+  const weekIntensity = last7Int.length ? last7Int.reduce((a, b) => a + b.intensity!, 0) / last7Int.length : null;
+  const last7Rpe = last7.filter((b) => b.rpe != null);
+  const weekRpe = last7Rpe.length ? last7Rpe.reduce((a, b) => a + b.rpe!, 0) / last7Rpe.length : null;
+  const weekSessions = data.sessions.filter((s) => s.status === 'done' && s.date >= last7Start && s.date <= today).length;
+  // Objectif des 7 derniers jours = séances de force programmées (ou déjà faites) sur la période.
+  const strengthIds = new Set(strengthSports(data).map((s) => s.id));
+  const weekStreet = data.sessions.filter((s) => strengthIds.has(s.sportId) && s.date >= last7Start && s.date <= today);
   const streetDone = weekStreet.filter((s) => s.status === 'done').length;
   const streetTarget = weekStreet.length;
 
@@ -44,7 +51,7 @@ export default function Home({ data }: { data: AppData }) {
   return (
     <div className="page">
       <PageHead
-        title="Salut Tim"
+        title={data.userName ? `Salut ${data.userName}` : 'Salut'}
         sub={formatLong(today)}
         right={
           <button className="icon-btn" onClick={() => navigate('/reglages')} aria-label="Réglages">
@@ -90,13 +97,12 @@ export default function Home({ data }: { data: AppData }) {
         ) : (
           <div className="muted">Rien de prévu aujourd'hui. Repos, ou on y va&nbsp;?</div>
         )}
-        <div className="row" style={{ marginTop: 14 }}>
-          <button className="btn ghost sm grow" onClick={() => quick(STREET_ID)}>
-            <IconDumbbell size={18} /> Streetlifting
-          </button>
-          <button className="btn ghost sm grow" onClick={() => quick(BJJ_ID)}>
-            <IconBelt size={18} /> Cours BJJ
-          </button>
+        <div className="row wrap" style={{ marginTop: 14 }}>
+          {data.activeSports.map((s) => (
+            <button key={s.id} className="btn ghost sm grow" onClick={() => quick(s.id)}>
+              {s.kind === 'combat' ? <IconBelt size={18} /> : <IconDumbbell size={18} />} {s.name}
+            </button>
+          ))}
         </div>
       </Card>
 
@@ -120,7 +126,7 @@ export default function Home({ data }: { data: AppData }) {
         </div>
         <div className="chips scroll" style={{ marginBottom: 8 }}>
           <button className={`chip ${exerciseId === '' ? 'on' : ''}`} onClick={() => setExerciseId('')}>Tous</button>
-          {strengthExercises.map((e) => (
+          {strengthExercisesList.map((e) => (
             <button key={e.id} className={`chip ${exerciseId === e.id ? 'on' : ''}`} onClick={() => setExerciseId(e.id)}>
               {e.name.replace(/ lest(é|ée|és)$/, '')}
             </button>
@@ -131,20 +137,20 @@ export default function Home({ data }: { data: AppData }) {
 
       <Card>
         <div className="card-head">
-          <h2>Cette semaine</h2>
+          <h2>7 derniers jours</h2>
         </div>
         <div className="row" style={{ gap: 16 }}>
           <div style={{ textAlign: 'center' }}>
             <Ring value={streetTarget ? streetDone / streetTarget : 0} size={84} stroke={10}>
               <span className="num">{streetDone}/{streetTarget}</span>
             </Ring>
-            <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>street prévues</div>
+            <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>force prévues</div>
           </div>
           <div className="grow" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <Stat label="Séances" value={String(weekSessions)} />
-            <Stat label="Répétitions" value={String(week.reps)} />
-            <Stat label="Intensité" value={week.intensity != null ? `${Math.round(week.intensity * 100)} %` : '—'} />
-            <Stat label="RPE moyen" value={week.rpe != null ? week.rpe.toFixed(1).replace('.', ',') : '—'} />
+            <Stat label="Répétitions" value={String(weekReps)} />
+            <Stat label="Intensité" value={weekIntensity != null ? `${Math.round(weekIntensity * 100)} %` : '—'} />
+            <Stat label="RPE moyen" value={weekRpe != null ? weekRpe.toFixed(1).replace('.', ',') : '—'} />
           </div>
         </div>
       </Card>
@@ -228,9 +234,12 @@ function WeekScroller({ data, done, onQuick }: { data: AppData; done: Map<string
             <>
               <div className="muted small" style={{ margin: '4px 0 10px' }}>Rien de prévu ce jour-là.</div>
               {selected >= today && (
-                <div className="row">
-                  <button className="btn ghost sm grow" onClick={() => onQuick(STREET_ID, selected)}><IconDumbbell size={16} /> Programmer</button>
-                  <button className="btn ghost sm grow" onClick={() => onQuick(BJJ_ID, selected)}><IconBelt size={16} /> BJJ</button>
+                <div className="row wrap">
+                  {data.activeSports.map((s) => (
+                    <button key={s.id} className="btn ghost sm grow" onClick={() => onQuick(s.id, selected)}>
+                      {s.kind === 'combat' ? <IconBelt size={16} /> : <IconDumbbell size={16} />} {s.name}
+                    </button>
+                  ))}
                 </div>
               )}
             </>

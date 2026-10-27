@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { AppData } from '../db/useData';
+import { strengthExercises } from '../db/useData';
 import type { Goal } from '../db/types';
 import { db } from '../db/db';
 import { Card, PageHead, Progress, Sheet, Stepper } from '../components/ui';
@@ -9,7 +10,7 @@ import { goalSeries, goalValue } from '../lib/stats';
 import { formatKg } from '../lib/calc';
 import { formatShort, parseISO, todayISO } from '../lib/dates';
 import { uid } from '../lib/id';
-import { LOAD_STEP, STREET_ID } from '../sports';
+import { LOAD_STEP } from '../sports';
 
 const RM_CHOICES = [1, 2, 3, 5];
 const kg = (v: number) => `+${formatKg(Math.round(v * 10) / 10)} kg`;
@@ -62,6 +63,7 @@ export default function Goals({ data }: { data: AppData }) {
 
 function GoalCard({ goal, data }: { goal: Goal; data: AppData }) {
   const [chart, setChart] = useState(false);
+  const [editing, setEditing] = useState(false);
   const current = goalValue(goal, data, data.counted);
   const ratio = goal.target > 0 ? current / goal.target : 0;
   const reached = current >= goal.target;
@@ -80,9 +82,22 @@ function GoalCard({ goal, data }: { goal: Goal; data: AppData }) {
         </div>
         <button className="muted" aria-label="Supprimer l'objectif" onClick={() => confirm('Supprimer cet objectif ?') && db.goals.delete(goal.id)}><IconTrash size={18} /></button>
       </div>
-      <div style={{ marginBottom: 12 }}>
-        <RmPicker value={goal.reps} onChange={(reps) => db.goals.update(goal.id, { reps })} />
-      </div>
+      {editing ? (
+        <div className="stack" style={{ marginBottom: 12 }}>
+          <div>
+            <div className="label">Nombre de répétitions</div>
+            <RmPicker value={goal.reps} onChange={(reps) => db.goals.update(goal.id, { reps })} />
+          </div>
+          <div>
+            <div className="label">Charge visée</div>
+            <Stepper keyboard="decimal" prefix="+" unit="kg" value={goal.target} step={LOAD_STEP} onChange={(target) => db.goals.update(goal.id, { target })} format={formatKg} />
+          </div>
+        </div>
+      ) : (
+        <div className="muted small" style={{ marginBottom: 12 }}>
+          {goal.reps}RM · charge visée {kg(goal.target)}
+        </div>
+      )}
       <div className="row" style={{ alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         <span className="big-sm num">{current > 0 ? kg(current) : '—'}</span>
         <span className="muted num">/ {kg(goal.target)}</span>
@@ -93,14 +108,11 @@ function GoalCard({ goal, data }: { goal: Goal; data: AppData }) {
       <div className="muted small" style={{ marginTop: 6 }}>Meilleur lest sur {goal.reps} rep{goal.reps > 1 ? 's' : ''} ou plus (séries validées et maxes officiels).</div>
       {chart && (
         <div style={{ marginTop: 12 }}>
-          <div className="label">Cible</div>
-          <Stepper keyboard="decimal" prefix="+" unit="kg" value={goal.target} step={LOAD_STEP} onChange={(target) => db.goals.update(goal.id, { target })} format={formatKg} />
-          <div style={{ marginTop: 12 }}>
-            <TrendChart line data={goalSeries(goal, data, data.counted)} dataKey="value" refLine={{ value: goal.target, label: 'Cible' }} format={kg} height={150} />
-          </div>
+          <TrendChart line data={goalSeries(goal, data, data.counted)} dataKey="value" refLine={{ value: goal.target, label: 'Cible' }} format={kg} height={150} />
         </div>
       )}
       <div className="row" style={{ marginTop: 12 }}>
+        <button className="btn ghost sm grow" onClick={() => setEditing(!editing)}>{editing ? 'Fermer' : 'Modifier'}</button>
         <button className="btn ghost sm grow" onClick={() => setChart(!chart)}>{chart ? 'Masquer' : 'Progression'}</button>
         <button className={`btn sm grow ${reached ? 'accent' : ''}`} onClick={() => db.goals.update(goal.id, { achieved: true, achievedAt: todayISO() })}>
           {reached ? 'Atteint ! Archiver' : 'Marquer atteint'}
@@ -111,7 +123,7 @@ function GoalCard({ goal, data }: { goal: Goal; data: AppData }) {
 }
 
 function NewGoal({ open, onClose, data }: { open: boolean; onClose: () => void; data: AppData }) {
-  const exercises = data.exercises.filter((e) => e.sportId === STREET_ID && !e.archived);
+  const exercises = strengthExercises(data);
   const [exerciseId, setExerciseId] = useState(exercises[0]?.id ?? '');
   const [reps, setReps] = useState(1);
   const [target, setTarget] = useState(20);

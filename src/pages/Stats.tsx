@@ -1,27 +1,37 @@
 import { useMemo, useState } from 'react';
 import type { AppData } from '../db/useData';
+import { strengthExercises } from '../db/useData';
 import { Card, PageHead, Segmented, energyColor } from '../components/ui';
 import { Bars, Legend, TrendChart } from '../components/charts';
 import { aggregate, bucketStart, categorySummary, dayStatuses, e1rmSeries, officialAt, type DayStatus, type Period } from '../lib/stats';
 import { CATEGORY_LABEL, formatKg, formatTonnage } from '../lib/calc';
 import { addDays, addMonths, formatDay, formatMonth, formatMonthYear, parseISO, startOfWeek, todayISO, weekdayLetter } from '../lib/dates';
 import { IconBack, IconCheck, IconChevron } from '../components/Icons';
-import { STREET_ID } from '../sports';
 
 const CAT_COLORS = { force: 'var(--accent)', inter: 'var(--series-2)', volume: 'var(--series-3)' };
 const pct = (v: number) => `${Math.round(v * 100)} %`;
 const dec = (v: number) => v.toFixed(1).replace('.', ',');
 
 export default function Stats({ data }: { data: AppData }) {
-  const [period, setPeriod] = useState<Period>('week');
+  const [period, setPeriod] = useState<Period>('day');
   const n = period === 'day' ? 7 : period === 'week' ? 12 : 6;
-  const buckets = useMemo(() => aggregate(data, data.counted, period, n), [data, period, n]);
-  const exercises = data.exercises.filter((e) => e.sportId === STREET_ID && !e.archived);
+  const exercises = strengthExercises(data);
+  const [exSel, setExSel] = useState<Set<string>>(new Set());
+  const toggleEx = (id: string) => setExSel((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const counted = useMemo(
+    () => (exSel.size ? data.counted.filter((c) => exSel.has(c.exerciseId)) : data.counted),
+    [data.counted, exSel],
+  );
+  const buckets = useMemo(() => aggregate(data, counted, period, n), [data, counted, period, n]);
   const [exId, setExId] = useState(exercises[0]?.id ?? '');
   const e1 = useMemo(() => e1rmSeries(data.counted, exId, period, n), [data.counted, exId, period, n]);
   const since = bucketStart(buckets[0].key);
   const official = exId ? officialAt(data.maxes, exId, todayISO()) : undefined;
-  const cats = categorySummary(data.counted, since);
+  const cats = categorySummary(counted, since);
 
   const withIntensity = buckets.map((b) => ({ ...b, intensityPct: b.intensity != null ? b.intensity * 100 : null }));
   const known = buckets.filter((b) => b.intensity != null);
@@ -40,6 +50,13 @@ export default function Stats({ data }: { data: AppData }) {
       <PageHead title="Stats" sub={periodWord} />
       <Segmented value={period} onChange={setPeriod} options={[['day', '7 jours'], ['week', 'Semaines'], ['month', 'Mois']]} />
 
+      <div className="chips scroll" style={{ margin: '0 -16px', padding: '0 16px' }}>
+        <button className={`chip ${exSel.size === 0 ? 'on' : ''}`} onClick={() => setExSel(new Set())}>Tous</button>
+        {exercises.map((e) => (
+          <button key={e.id} className={`chip ${exSel.has(e.id) ? 'on' : ''}`} onClick={() => toggleEx(e.id)}>{e.name}</button>
+        ))}
+      </div>
+
       <Card>
         <div className="card-head"><h2>Tonnage</h2><span className="muted small">charge × reps</span></div>
         <TrendChart data={buckets} dataKey="tonnage" format={formatTonnage} />
@@ -47,7 +64,7 @@ export default function Stats({ data }: { data: AppData }) {
 
       <Card>
         <div className="card-head"><h2>Volume de répétitions</h2></div>
-        <Bars data={buckets} series={[{ key: 'reps', name: 'Reps', color: 'var(--accent)' }]} format={(v) => `${v} reps`} />
+        <TrendChart line data={buckets} dataKey="reps" format={(v) => `${v} reps`} />
       </Card>
 
       <Card>

@@ -4,11 +4,11 @@ import type { Session, WorkSet } from '../db/types';
 import { db } from '../db/db';
 import { addSetsToSession, defaultBlock, deleteSession, sessionToTemplate, type SetBlock } from '../db/actions';
 import { BatteryPicker, CheckButton, MiniStep, PageHead, Segmented, Sheet, Card, Stepper } from '../components/ui';
-import { IconCopy, IconPlus, IconTrash } from '../components/Icons';
+import { IconArrowDown, IconArrowUp, IconCopy, IconPlus, IconTrash } from '../components/Icons';
 import { epley, formatKg, tonnage } from '../lib/calc';
 import { addDays, relativeDay, todayISO } from '../lib/dates';
-import { LOAD_STEP, STREET_ID } from '../sports';
-import { goBack, navigate } from '../router';
+import { LOAD_STEP } from '../sports';
+import { goBack } from '../router';
 import { uid } from '../lib/id';
 import { sessionTitle } from './sessionInfo';
 
@@ -69,11 +69,33 @@ export default function StrengthSession({ session, data }: { session: Session; d
 
   const finish = async () => {
     await updateSession({ status: 'done', draft: false, note });
-    navigate('/');
+    goBack('/');
   };
   const schedule = async () => {
     await updateSession({ status: 'planned', draft: false, note });
-    navigate('/seances');
+    goBack('/seances');
+  };
+
+  // Déplace tout un exercice (toutes ses séries) d'une position dans la séance.
+  const moveExercise = async (exerciseId: string, dir: -1 | 1) => {
+    const order = groups.map(([id]) => id);
+    const i = order.indexOf(exerciseId);
+    const j = i + dir;
+    if (j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    await db.transaction('rw', db.sets, async () => {
+      let o = 0;
+      for (const id of order) {
+        const group = groups.find(([gid]) => gid === id)![1];
+        for (const s of group) await db.sets.update(s.id, { order: o++ });
+      }
+    });
+  };
+
+  const removeExercise = async (exerciseId: string) => {
+    if (!confirm(`Supprimer « ${exName(exerciseId)} » de cette séance ?`)) return;
+    const ids = (groups.find(([id]) => id === exerciseId)?.[1] ?? []).map((s) => s.id);
+    await db.transaction('rw', db.sets, async () => { for (const id of ids) await db.sets.delete(id); });
   };
 
   const saveTemplate = async () => {
@@ -123,7 +145,7 @@ export default function StrengthSession({ session, data }: { session: Session; d
         </div>
       )}
 
-      {groups.map(([exerciseId, group]) => {
+      {groups.map(([exerciseId, group], gi) => {
         const best = Math.max(0, ...group.filter((s) => s.done).map((s) => epley(s.load, s.reps)));
         const prev = previousBest.get(exerciseId) ?? 0;
         const isRecord = best > 0 && best > prev && prev > 0;
@@ -138,7 +160,18 @@ export default function StrengthSession({ session, data }: { session: Session; d
                   {prev > 0 && `record ${formatKg(prev)} kg`}
                 </div>
               </div>
-              {isRecord && <span className="badge">🏆 Record</span>}
+              <div className="row" style={{ gap: 2 }}>
+                {isRecord && <span className="badge">🏆 Record</span>}
+                <button className="icon-btn" aria-label="Monter l'exercice" disabled={gi === 0} onClick={() => moveExercise(exerciseId, -1)}>
+                  <IconArrowUp size={16} />
+                </button>
+                <button className="icon-btn" aria-label="Descendre l'exercice" disabled={gi === groups.length - 1} onClick={() => moveExercise(exerciseId, 1)}>
+                  <IconArrowDown size={16} />
+                </button>
+                <button className="icon-btn" aria-label="Supprimer l'exercice" onClick={() => removeExercise(exerciseId)}>
+                  <IconTrash size={16} />
+                </button>
+              </div>
             </div>
             {group.map((s, i) => (
               <div key={s.id} className="set">
@@ -254,6 +287,7 @@ export default function StrengthSession({ session, data }: { session: Session; d
         exerciseId={adding?.exerciseId}
         initial={adding?.initial}
         excludeSessionId={session.id}
+        sportId={session.sportId}
         onClose={() => setAdding(null)}
         data={data}
         onAdd={async (exerciseId, block) => {
@@ -269,14 +303,14 @@ export default function StrengthSession({ session, data }: { session: Session; d
  * Choix d'un exercice puis d'un bloc de séries identiques (ex. 3 × 8 @ +30 kg),
  * prérempli avec la dernière séance. Avec `exerciseId`, on saute le choix de l'exercice.
  */
-export function AddSetsSheet({ open, onClose, onAdd, data, exerciseId: fixed, initial, excludeSessionId }: {
+export function AddSetsSheet({ open, onClose, onAdd, data, exerciseId: fixed, initial, excludeSessionId, sportId }: {
   open: boolean; onClose: () => void; onAdd: (exerciseId: string, block: SetBlock) => void; data: AppData;
-  exerciseId?: string; initial?: SetBlock; excludeSessionId?: string;
+  exerciseId?: string; initial?: SetBlock; excludeSessionId?: string; sportId: string;
 }) {
   const [name, setName] = useState('');
   const [exId, setExId] = useState<string | null>(null);
   const [block, setBlock] = useState<SetBlock | null>(null);
-  const list = data.exercises.filter((e) => e.sportId === STREET_ID && !e.archived);
+  const list = data.exercises.filter((e) => e.sportId === sportId && !e.archived);
 
   const choose = async (id: string) => {
     setExId(id);
@@ -291,7 +325,7 @@ export function AddSetsSheet({ open, onClose, onAdd, data, exerciseId: fixed, in
   const create = async () => {
     if (!name.trim()) return;
     const id = uid();
-    await db.exercises.add({ id, sportId: STREET_ID, name: name.trim() });
+    await db.exercises.add({ id, sportId, name: name.trim() });
     setName('');
     choose(id);
   };

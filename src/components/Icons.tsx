@@ -22,3 +22,5 @@ export const IconSearch = (p: P) => <S {...p}><circle cx="11" cy="11" r="7" /><p
 export const IconPlay = (p: P) => <S {...p}><path d="M7 4l13 8-13 8z" fill="currentColor" /></S>;
 export const IconLink = (p: P) => <S {...p}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></S>;
 export const IconChevron = (p: P) => <S {...p}><path d="M9 6l6 6-6 6" /></S>;
+export const IconArrowUp = (p: P) => <S {...p}><path d="M12 19V5M5 12l7-7 7 7" /></S>;
+export const IconArrowDown = (p: P) => <S {...p}><path d="M12 5v14M19 12l-7 7-7-7" /></S>;

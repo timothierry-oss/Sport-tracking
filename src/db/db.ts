@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { Exercise, Goal, OfficialMax, Session, Setting, Sport, Tag, Template, WorkSet } from './types';
-import { DEFAULT_BJJ_TAGS, DEFAULT_EXERCISES, DEFAULT_SPORTS, BJJ_ID } from '../sports';
+import { DEFAULT_BJJ_TAGS, DEFAULT_EXERCISES, DEFAULT_SPORTS, BJJ_ID, POWERLIFTING_ID, POWERLIFTING_EXERCISES } from '../sports';
 import { uid } from '../lib/id';
 
 class SportDB extends Dexie {
@@ -44,6 +44,16 @@ class SportDB extends Dexie {
       };
       await tx.table('sessions').toCollection().modify(toPct);
       await tx.table('sets').toCollection().modify(toPct);
+    });
+    // v4 : ajout du sport Powerlifting (squat / développé couché / soulevé de terre).
+    this.version(4).upgrade(async (tx) => {
+      const sports = tx.table('sports');
+      const plSport = DEFAULT_SPORTS.find((s) => s.id === POWERLIFTING_ID)!;
+      if (!(await sports.get(POWERLIFTING_ID))) await sports.add(plSport);
+      const exercises = tx.table('exercises');
+      for (const ex of POWERLIFTING_EXERCISES) {
+        if (!(await exercises.get(ex.id))) await exercises.add(ex);
+      }
     });
     this.on('populate', (tx) => {
       tx.table('sports').bulkAdd(DEFAULT_SPORTS);

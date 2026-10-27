@@ -8,7 +8,7 @@ import { IconLink, IconPlus, IconTrash } from '../components/Icons';
 import { BJJ_CLASS_TYPES } from '../sports';
 import { addDays, relativeDay, todayISO } from '../lib/dates';
 import { uid } from '../lib/id';
-import { goBack, navigate } from '../router';
+import { goBack } from '../router';
 
 export default function BjjSession({ session, data }: { session: Session; data: AppData }) {
   const [c, setC] = useState<CombatDetails>(session.combat ?? emptyCombat());
@@ -43,7 +43,7 @@ export default function BjjSession({ session, data }: { session: Session; data: 
 
   const save = async (status: Session['status']) => {
     await db.sessions.update(session.id, { combat: c, feeling, date, status, draft: false });
-    navigate(status === 'planned' ? '/seances' : '/');
+    goBack(status === 'planned' ? '/seances' : '/');
   };
   const remove = async () => {
     if (confirm('Supprimer ce cours ?')) {

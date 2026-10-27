@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { AppData } from '../db/useData';
+import { strengthSports } from '../db/useData';
 import type { Session, Template } from '../db/types';
 import { BatteryBadge, Card, PageHead, Segmented, Sheet } from '../components/ui';
 import { IconBack, IconBelt, IconChevron, IconDumbbell, IconPlus, IconSearch } from '../components/Icons';
 import { createSession } from '../db/actions';
 import { db } from '../db/db';
 import { uid } from '../lib/id';
-import { addDays, addMonths, formatMonthYear, formatShort, parseISO, relativeDay, startOfWeek, todayISO, weekDays, weekdayLetter } from '../lib/dates';
+import { addDays, addMonths, formatMonthYear, formatShort, parseISO, relativeDay, startOfWeek, todayISO, weekdayLetter } from '../lib/dates';
 import { formatKg, tonnage } from '../lib/calc';
-import { BJJ_ID, STREET_ID } from '../sports';
 import { navigate } from '../router';
 import { sessionTitle } from './sessionInfo';
 
@@ -67,7 +67,7 @@ function SessionItem({ s, data, compact }: { s: Session; data: AppData; compact?
 
 function Planning({ data, onAdd }: { data: AppData; onAdd: (date: string) => void }) {
   const today = todayISO();
-  const [view, setView] = useState<'week' | 'days' | 'month'>('week');
+  const [view, setView] = useState<'days' | 'month'>('days');
   const [start, setStart] = useState(today);
   const [month, setMonth] = useState(today.slice(0, 7));
   const [selected, setSelected] = useState(today);
@@ -80,7 +80,7 @@ function Planning({ data, onAdd }: { data: AppData; onAdd: (date: string) => voi
   }, [data.sessions]);
   const late = data.sessions.filter((s) => s.status === 'planned' && s.date < today).sort((a, b) => a.date.localeCompare(b.date));
 
-  const days = view === 'week' ? weekDays(today) : Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   const monthStart = startOfWeek(month + '-01');
   const cells = Array.from({ length: 42 }, (_, i) => addDays(monthStart, i));
   const weeksShown = cells[35].slice(0, 7) === month ? 6 : 5;
@@ -88,8 +88,8 @@ function Planning({ data, onAdd }: { data: AppData; onAdd: (date: string) => voi
   return (
     <>
       <div className="row between">
-        <Segmented value={view} onChange={setView} options={[['week', 'Semaine'], ['days', '7 jours'], ['month', 'Mois']]} />
-        <div className="row" style={{ gap: 6, visibility: view === 'week' ? 'hidden' : undefined }}>
+        <Segmented value={view} onChange={setView} options={[['days', '7 jours'], ['month', 'Mois']]} />
+        <div className="row" style={{ gap: 6 }}>
           <button className="icon-btn" aria-label="Précédent" onClick={() => (view === 'days' ? setStart(addDays(start, -7)) : setMonth(addMonths(month, -1)))}>
             <IconBack size={18} />
           </button>
@@ -100,10 +100,9 @@ function Planning({ data, onAdd }: { data: AppData; onAdd: (date: string) => voi
       </div>
       <div className="row between" style={{ padding: '0 4px' }}>
         <strong style={{ textTransform: view === 'month' ? 'capitalize' : undefined }}>
-          {view === 'week' ? `Cette semaine · ${formatShort(days[0])} – ${formatShort(days[6])}`
-            : view === 'days' ? `${formatShort(days[0])} – ${formatShort(days[6])}` : formatMonthYear(month)}
+          {view === 'days' ? `${formatShort(days[0])} – ${formatShort(days[6])}` : formatMonthYear(month)}
         </strong>
-        {view !== 'week' && (view === 'days' ? start !== today : month !== today.slice(0, 7)) && (
+        {(view === 'days' ? start !== today : month !== today.slice(0, 7)) && (
           <button className="chip" onClick={() => { setStart(today); setMonth(today.slice(0, 7)); setSelected(today); }}>Aujourd'hui</button>
         )}
       </div>
@@ -174,7 +173,8 @@ function History({ data }: { data: AppData }) {
   const [q, setQ] = useState('');
   const [sport, setSport] = useState<'all' | string>('all');
   const [tag, setTag] = useState<string | null>(null);
-  const bjjTags = data.tags.filter((t) => t.sportId === BJJ_ID);
+  const combatIds = new Set(data.activeSports.filter((s) => s.kind === 'combat').map((s) => s.id));
+  const combatTags = data.tags.filter((t) => combatIds.has(t.sportId));
 
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -199,13 +199,17 @@ function History({ data }: { data: AppData }) {
         <input placeholder="Rechercher (technique, note…)" value={q} onChange={(e) => setQ(e.target.value)} style={{ background: 'transparent' }} />
       </div>
       <div className="chips">
-        <button className={`chip ${sport === 'all' ? 'on' : ''}`} onClick={() => { setSport('all'); }}>Tout</button>
-        <button className={`chip ${sport === STREET_ID ? 'on' : ''}`} onClick={() => { setSport(STREET_ID); setTag(null); }}>Streetlifting</button>
-        <button className={`chip ${sport === BJJ_ID ? 'on' : ''}`} onClick={() => setSport(BJJ_ID)}>BJJ</button>
+        <button className={`chip ${sport === 'all' ? 'on' : ''}`} onClick={() => setSport('all')}>Tout</button>
+        {data.activeSports.map((s) => (
+          <button key={s.id} className={`chip ${sport === s.id ? 'on' : ''}`}
+            onClick={() => { setSport(s.id); if (!combatIds.has(s.id)) setTag(null); }}>
+            {s.name}
+          </button>
+        ))}
       </div>
-      {sport !== STREET_ID && bjjTags.length > 0 && (
+      {(sport === 'all' || combatIds.has(sport)) && combatTags.length > 0 && (
         <div className="chips scroll" style={{ margin: '0 -16px', padding: '0 16px' }}>
-          {bjjTags.map((t) => (
+          {combatTags.map((t) => (
             <button key={t.id} className={`chip ${tag === t.id ? 'accent' : ''}`} onClick={() => setTag(tag === t.id ? null : t.id)}>#{t.name}</button>
           ))}
         </div>
@@ -216,14 +220,19 @@ function History({ data }: { data: AppData }) {
 }
 
 function Templates({ data, onPlan }: { data: AppData; onPlan: (t: Template) => void }) {
+  const strengthList = strengthSports(data);
+  const [newSportId, setNewSportId] = useState(strengthList[0]?.id ?? '');
+  const visible = data.templates.filter((t) => strengthList.some((s) => s.id === t.sportId));
   const create = async () => {
+    const sportId = newSportId || strengthList[0]?.id;
+    if (!sportId) return;
     const id = uid();
-    await db.templates.add({ id, name: 'Nouveau modèle', sportId: STREET_ID, items: [] });
+    await db.templates.add({ id, name: 'Nouveau modèle', sportId, items: [] });
     navigate(`/modele/${id}`);
   };
   return (
     <>
-      {data.templates.map((t) => (
+      {visible.map((t) => (
         <Card key={t.id}>
           <div className="card-head">
             <h2>{t.name}</h2>
@@ -235,8 +244,15 @@ function Templates({ data, onPlan }: { data: AppData; onPlan: (t: Template) => v
           <button className="btn block" onClick={() => onPlan(t)}>Planifier</button>
         </Card>
       ))}
-      {!data.templates.length && <Card><div className="empty">Crée un modèle réutilisable (ex. « Pull A »), ou enregistre une séance comme modèle.</div></Card>}
-      <button className="btn ghost block" onClick={create}><IconPlus size={18} /> Nouveau modèle</button>
+      {!visible.length && <Card><div className="empty">Crée un modèle réutilisable (ex. « Pull A »), ou enregistre une séance comme modèle.</div></Card>}
+      {strengthList.length > 1 && (
+        <div className="chips" style={{ margin: '8px 0' }}>
+          {strengthList.map((s) => (
+            <button key={s.id} className={`chip ${newSportId === s.id ? 'on' : ''}`} onClick={() => setNewSportId(s.id)}>{s.name}</button>
+          ))}
+        </div>
+      )}
+      <button className="btn ghost block" onClick={create} disabled={!strengthList.length}><IconPlus size={18} /> Nouveau modèle</button>
     </>
   );
 }
@@ -248,10 +264,12 @@ function NewSessionSheet({ data, state, onClose }: { data: AppData; state: NewSt
   }, [state]);
   const [templateId, setTemplateId] = useState<string>('');
   const fixed = state?.template;
+  const strengthIds = new Set(strengthSports(data).map((s) => s.id));
+  const templates = data.templates.filter((t) => strengthIds.has(t.sportId));
 
   const go = async (sportId: string) => {
-    const template = fixed ?? data.templates.find((t) => t.id === templateId);
-    const id = await createSession({ sportId, date, template: sportId === STREET_ID ? template : undefined });
+    const template = fixed ?? templates.find((t) => t.id === templateId && t.sportId === sportId);
+    const id = await createSession({ sportId, date, template });
     onClose();
     setTemplateId('');
     navigate(`/seance/${id}`);
@@ -264,22 +282,27 @@ function NewSessionSheet({ data, state, onClose }: { data: AppData; state: NewSt
         <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
       </div>
       {fixed ? (
-        <button className="btn accent block xl" onClick={() => go(STREET_ID)}>Planifier</button>
+        <button className="btn accent block xl" onClick={() => go(fixed.sportId)}>Planifier</button>
       ) : (
         <>
-          {data.templates.length > 0 && (
+          {templates.length > 0 && (
             <div>
-              <div className="label">Modèle (streetlifting)</div>
+              <div className="label">Modèle</div>
               <div className="chips">
                 <button className={`chip ${templateId === '' ? 'on' : ''}`} onClick={() => setTemplateId('')}>Aucun</button>
-                {data.templates.map((t) => (
+                {templates.map((t) => (
                   <button key={t.id} className={`chip ${templateId === t.id ? 'on' : ''}`} onClick={() => setTemplateId(t.id)}>{t.name}</button>
                 ))}
               </div>
             </div>
           )}
-          <button className="btn accent block xl" onClick={() => go(STREET_ID)}><IconDumbbell /> Streetlifting</button>
-          <button className="btn block xl" onClick={() => go(BJJ_ID)}><IconBelt /> Cours de BJJ</button>
+          <div className="stack">
+            {data.activeSports.map((s, i) => (
+              <button key={s.id} className={`btn ${i === 0 ? 'accent' : ''} block xl`} onClick={() => go(s.id)}>
+                {s.kind === 'combat' ? <IconBelt /> : <IconDumbbell />} {s.name}
+              </button>
+            ))}
+          </div>
         </>
       )}
     </Sheet>

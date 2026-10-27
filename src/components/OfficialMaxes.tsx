@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import type { AppData } from '../db/useData';
+import { strengthExercises } from '../db/useData';
 import { db } from '../db/db';
 import { uid } from '../lib/id';
 import { formatKg } from '../lib/calc';
 import { formatShort, todayISO } from '../lib/dates';
-import { LOAD_STEP, STREET_ID } from '../sports';
+import { LOAD_STEP } from '../sports';
 import { Card, MiniStep } from './ui';
 import { IconTrash } from './Icons';
 
 /** Records personnels réellement testés (1RM officiels, ou XRM) par exercice. */
 export function OfficialMaxes({ data }: { data: AppData }) {
-  const exercises = data.exercises.filter((e) => e.sportId === STREET_ID && !e.archived);
+  const exercises = strengthExercises(data);
   const [adding, setAdding] = useState(false);
   const [exerciseId, setExerciseId] = useState(exercises[0]?.id ?? '');
   const [reps, setReps] = useState(1);

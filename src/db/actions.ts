@@ -2,7 +2,6 @@ import { db } from './db';
 import type { CombatDetails, Session, Template, WorkSet } from './types';
 import { uid } from '../lib/id';
 import { todayISO } from '../lib/dates';
-import { BJJ_ID, STREET_ID } from '../sports';
 
 export function emptyCombat(): CombatDetails {
   return { type: [], duration: 90, flow: '', remarks: '', improve: '', techniques: [], videos: [] };
@@ -16,6 +15,7 @@ export async function createSession(opts: {
   /** Brouillon : n'existe vraiment qu'une fois validé dans l'éditeur. */
   draft?: boolean;
 }): Promise<string> {
+  const sport = await db.sports.get(opts.sportId);
   const session: Session = {
     id: uid(),
     date: opts.date ?? todayISO(),
@@ -23,7 +23,7 @@ export async function createSession(opts: {
     status: opts.status ?? 'planned',
     title: opts.template?.name,
     createdAt: Date.now(),
-    combat: opts.sportId === BJJ_ID ? emptyCombat() : undefined,
+    combat: sport?.kind === 'combat' ? emptyCombat() : undefined,
     draft: opts.draft ?? true,
   };
   const sets: WorkSet[] = [];
@@ -92,6 +92,7 @@ export async function deleteSession(id: string) {
 }
 
 export async function sessionToTemplate(sessionId: string, name: string) {
+  const session = await db.sessions.get(sessionId);
   const sets = (await db.sets.where('sessionId').equals(sessionId).toArray()).sort((a, b) => a.order - b.order);
   const items: Template['items'] = [];
   for (const s of sets) {
@@ -99,7 +100,7 @@ export async function sessionToTemplate(sessionId: string, name: string) {
     if (!item) items.push((item = { exerciseId: s.exerciseId, sets: [] }));
     item.sets.push({ load: s.load, reps: s.reps, rest: s.rest });
   }
-  const t: Template = { id: uid(), name, sportId: STREET_ID, items };
+  const t: Template = { id: uid(), name, sportId: session!.sportId, items };
   await db.templates.add(t);
   return t.id;
 }

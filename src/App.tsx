@@ -11,6 +11,7 @@ import Settings from './pages/Settings';
 import StrengthSession from './pages/StrengthSession';
 import BjjSession from './pages/BjjSession';
 import TemplateEditor from './pages/TemplateEditor';
+import Onboarding from './pages/Onboarding';
 import { useTheme } from './theme/useTheme';
 
 const TAB_PATHS = ['/', '/seances', '/stats', '/objectifs'];
@@ -27,6 +28,7 @@ export default function App() {
   }, [section, id]);
 
   if (!data) return null;
+  if (data.selectedSports == null) return <div className="app"><Onboarding data={data} /></div>;
 
   let page: React.ReactNode;
   if (section === 'seance' && id) {
