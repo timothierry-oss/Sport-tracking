@@ -21,7 +21,7 @@ create table if not exists shared_snapshots (
   user_id uuid primary key references profiles (id) on delete cascade,
   level text not null default 'none' check (level in ('none', 'summary', 'full')),
   summary jsonb not null default '{}'::jsonb,
-  full jsonb not null default '{}'::jsonb,
+  full_data jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
 

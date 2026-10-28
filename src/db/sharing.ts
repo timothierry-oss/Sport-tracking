@@ -42,8 +42,8 @@ export function buildFull(data: AppData): SharedFull {
 export async function pushSnapshot(data: AppData, userId: string, level: ShareLevel) {
   if (!supabase) return;
   const summary = buildSummary(data);
-  const full = level === 'full' ? buildFull(data) : { ...summary, sessions: [] };
-  await supabase.from('shared_snapshots').upsert({ user_id: userId, level, summary, full, updated_at: new Date().toISOString() });
+  const fullData = level === 'full' ? buildFull(data) : { ...summary, sessions: [] };
+  await supabase.from('shared_snapshots').upsert({ user_id: userId, level, summary, full_data: fullData, updated_at: new Date().toISOString() });
 }
 
 export type FriendRow = { friendshipId: string; userId: string; email: string; displayName: string | null; status: 'pending' | 'accepted'; incoming: boolean };
@@ -86,7 +86,7 @@ export async function removeFriendship(friendshipId: string) {
 
 export async function fetchFriendSnapshot(friendUserId: string): Promise<{ level: ShareLevel; summary: SharedSummary; full: SharedFull } | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase.from('shared_snapshots').select('level, summary, full').eq('user_id', friendUserId).maybeSingle();
+  const { data, error } = await supabase.from('shared_snapshots').select('level, summary, full_data').eq('user_id', friendUserId).maybeSingle();
   if (error || !data) return null;
-  return { level: data.level, summary: data.summary, full: data.full };
+  return { level: data.level, summary: data.summary, full: data.full_data };
 }
