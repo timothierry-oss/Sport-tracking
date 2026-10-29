@@ -3,9 +3,10 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import pkg from './package.json';
 
-// Vercel sert le site depuis la racine.
+// Vercel sert le site depuis la racine. GH_PAGES_BASE permet un déploiement ponctuel
+// vers l'ancien lien GitHub Pages (récupération de données), sans revenir à ce mode par défaut.
 export default defineConfig(() => {
-  const base = '/';
+  const base = (globalThis as { process?: { env?: Record<string, string> } }).process?.env?.GH_PAGES_BASE || '/';
   return {
     base,
     define: { __APP_VERSION__: JSON.stringify(pkg.version) },
