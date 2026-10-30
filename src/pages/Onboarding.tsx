@@ -20,8 +20,8 @@ export default function Onboarding({ data }: { data: AppData }) {
   const [sportsChosen, setSportsChosen] = useState<Set<string>>(new Set());
   const [goals, setGoals] = useState<PendingGoal[]>([]);
   const [exId, setExId] = useState('');
-  const [reps, setReps] = useState(1);
-  const [target, setTarget] = useState(20);
+  /** Poids provisoire par (exercice, RM) tant que ce RM n'a pas été ajouté comme objectif. */
+  const [drafts, setDrafts] = useState<Record<string, number>>({});
 
   const allSportIds = new Set(data.sports.map((s) => s.id));
 
@@ -57,10 +57,17 @@ export default function Onboarding({ data }: { data: AppData }) {
     setStep('goals');
   };
 
-  const addGoal = () => {
-    if (!exId) return;
-    setGoals((g) => [...g, { id: uid(), exerciseId: exId, reps, target }]);
+  const draftKey = (ex: string, r: number) => `${ex}:${r}`;
+  const draftFor = (ex: string, r: number) => drafts[draftKey(ex, r)] ?? 20;
+  const setDraftFor = (ex: string, r: number, v: number) => setDrafts((d) => ({ ...d, [draftKey(ex, r)]: v }));
+
+  const toggleGoal = (ex: string, r: number) => {
+    const existing = goals.find((g) => g.exerciseId === ex && g.reps === r);
+    if (existing) setGoals((gs) => gs.filter((g) => g.id !== existing.id));
+    else setGoals((gs) => [...gs, { id: uid(), exerciseId: ex, reps: r, target: draftFor(ex, r) }]);
   };
+
+  const updateGoalTarget = (goalId: string, target: number) => setGoals((gs) => gs.map((g) => (g.id === goalId ? { ...g, target } : g)));
 
   const exName = (id: string) => data.exercises.find((e) => e.id === id)?.name ?? 'Exercice';
   const goalExercises = strengthExercisesFor(sportsChosen.size ? sportsChosen : allSportIds);
@@ -125,15 +132,23 @@ export default function Onboarding({ data }: { data: AppData }) {
                 <button key={e.id} className={`chip ${exId === e.id ? 'on' : ''}`} onClick={() => setExId(e.id)}>{e.name}</button>
               ))}
             </div>
-            <div className="label" style={{ marginTop: 10 }}>Nombre de répétitions</div>
-            <div className="segmented">
-              {RM_CHOICES.map((r) => <button key={r} className={r === reps ? 'on' : ''} onClick={() => setReps(r)}>{r}RM</button>)}
+            <div className="label" style={{ marginTop: 10 }}>Lest visé par nombre de répétitions</div>
+            <div className="stack" style={{ gap: 4 }}>
+              {RM_CHOICES.map((r) => {
+                const existing = goals.find((g) => g.exerciseId === exId && g.reps === r);
+                return (
+                  <div key={r} className="list-item">
+                    <span style={{ width: 44, fontWeight: 700 }}>{r}RM</span>
+                    <Stepper keyboard="decimal" prefix="+" unit="kg" step={LOAD_STEP} format={formatKg}
+                      value={existing ? existing.target : draftFor(exId, r)}
+                      onChange={(v) => (existing ? updateGoalTarget(existing.id, v) : setDraftFor(exId, r, v))} />
+                    <button className={`btn sm ${existing ? 'ghost' : 'accent'}`} onClick={() => toggleGoal(exId, r)} disabled={!exId}>
+                      {existing ? <IconTrash size={16} /> : <IconPlus size={16} />}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-            <div className="label" style={{ marginTop: 10 }}>Lest visé</div>
-            <Stepper keyboard="decimal" prefix="+" unit="kg" value={target} step={LOAD_STEP} onChange={setTarget} format={formatKg} />
-            <button className="btn ghost sm block" style={{ marginTop: 10 }} onClick={addGoal} disabled={!exId}>
-              <IconPlus size={16} /> Ajouter cet objectif
-            </button>
           </Card>
 
           {goals.length > 0 && (
